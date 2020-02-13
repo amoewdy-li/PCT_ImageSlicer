@@ -4,16 +4,25 @@ import matplotlib.pyplot as plt
 import os
 import csv
 import math
+from PIL import Image
+import io
+import re
+import base64
+import zipfile
 
+
+# TODO test image decoding function.
+# TODO integrate with AWS
 
 def get_upsample_img(img):
-    width = 5*img.shape[1]
-    height = 5*img.shape[0]
+    width = 6*img.shape[1]
+    height = 6*img.shape[0]
     dim = (width, height)
     resized = cv2.resize(img, dim, interpolation=cv2.INTER_LANCZOS4)
     # resized = cv2.resize(img, dim, interpolation=cv2.INTER_CUBIC)
     # resized = cv2.resize(img, dim, interpolation=cv2.INTER_LINEAR)
     return resized
+
 
 def get_dots(rect):
     rect_dot = [
@@ -23,6 +32,25 @@ def get_dots(rect):
         [rect[0] + rect[2], rect[1] + rect[3]]
     ]
     return rect_dot
+
+
+def send_img(crop_imgs):
+    i = 0
+    for logo in crop_imgs:
+        file_name_relative = "crop_binary_compress" + str(i) + ".png"
+        cv2.imwrite(file_name_relative, logo)
+        print(file_name_relative)
+        i += 1
+    return 0
+
+
+# TODO what the hell is this.....
+def url_to_img(url):
+    imgstr = re.search(r'base64,(.*)', url).group(1)
+    image_bytes = io.BytesIO(base64.b64decode(imgstr))
+    im = Image.open(image_bytes)
+    image = np.array(im)
+    return image
 
 
 class ImageSlicer:
@@ -36,9 +64,11 @@ class ImageSlicer:
         gray_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
         # TODO change kernel size when binarize images for higher img quality.
         gaussian_blur = cv2.GaussianBlur(gray_img, (3, 3), 0)
-        th, threshed = cv2.threshold(gray_img, 160, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # th, threshed = cv2.threshold(gray_img, 250, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        th, threshed = cv2.threshold(gray_img, 174, 255, cv2.THRESH_BINARY)
         blurred_binary = cv2.GaussianBlur(threshed, (3, 3), 0)
         return blurred_binary
+        # return threshed
 
     def get_rec_from_stack(self, stack):
         new_rect = []
@@ -112,7 +142,8 @@ class ImageSlicer:
         print('image loaded')
 
         for key, value in lower_rec.items():
-            kernel = np.ones((8, 8), np.uint8)
+            # kernel = np.ones((8, 8), np.uint8)
+            kernel = np.ones((4, 4), np.uint8)
             mask = cv2.inRange(hsv_img, lower_rec[key], upper_rec[key])
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
@@ -127,7 +158,7 @@ class ImageSlicer:
                 #     cv2.rectangle(self.img, (a, b), (a + c, b + d), (0, 255, 0), 2)
                 #     print(key, a, b, c, d)
                 if key == 'gray':
-                    cv2.drawContours(img, [cnt], 0, (150, 150, 000), 2)
+                    cv2.drawContours(self.img, [cnt], 0, (150, 150, 000), 2)
                     approx_rec_blue = cv2.approxPolyDP(cnt, epsilon, True)
                     # plt.imshow(self.img)
                     a, b, c, d = cv2.boundingRect(approx_rec_blue)
@@ -136,33 +167,56 @@ class ImageSlicer:
                         cv2.rectangle(self.img, (a, b), (a + c, b + d), (255, 0, 0), 4)
                         rect_mask.append([a, b, c, d])
 
-            cv2.imwrite("test_gray_border_8.png", self.img)
+            cv2.imwrite("test_gray_border_9.png", self.img)
         return rect_mask
 
+    # def crop_image(self, rect_mask):
+    #     crop_imgs = []
+    #     i = 0
+    #     for mask in rect_mask:
+    #         cv2.rectangle(self.img, (mask[0], mask[1]), (mask[0] + mask[2], mask[1] + mask[3]), (0, 0, 255), 4)
+    #         cropped_img = self.img[mask[1] + self.stroke:mask[1] + mask[3] - self.stroke, mask[0] + self.stroke:mask[0] + mask[2] - self.stroke]
+    #         file_name_relative = "crop_binary" + str(i) + ".png"
+    #         upsample_img = get_upsample_img(cropped_img)
+    #         binary_img = self.get_binary_img(upsample_img)
+    #         cv2.imwrite(file_name_relative, binary_img)
+    #         print(file_name_relative)
+    #         crop_imgs.append(binary_img)
+    #         i += 1
+    #     cv2.imwrite("test_gray_border_filtered_8.png", self.img)
+    #     return crop_imgs
     def crop_image(self, rect_mask):
         crop_imgs = []
         i = 0
         for mask in rect_mask:
             cv2.rectangle(self.img, (mask[0], mask[1]), (mask[0] + mask[2], mask[1] + mask[3]), (0, 0, 255), 4)
             cropped_img = self.img[mask[1] + self.stroke:mask[1] + mask[3] - self.stroke, mask[0] + self.stroke:mask[0] + mask[2] - self.stroke]
-            file_name_relative = "crop_binary" + str(i) + ".png"
             upsample_img = get_upsample_img(cropped_img)
             binary_img = self.get_binary_img(upsample_img)
-            cv2.imwrite(file_name_relative, binary_img)
-            print(file_name_relative)
             crop_imgs.append(binary_img)
             i += 1
-        cv2.imwrite("test_gray_border_filtered_8.png", self.img)
+        cv2.imwrite("test_gray_border_filtered_compress.png", self.img)
         return crop_imgs
 
+    def send_img(self, img_set):
+        i = 1
+        for logo in img_set:
+            file_name_relative = "crop_binary_compress" + str(i) + ".png"
+            # if i==0:
+            cv2.imwrite(file_name_relative, logo)
+            print(file_name_relative)
+            i += 1
+        return 0
 
 if __name__ == "__main__":
-    image_path = '/Users/sixuan/Desktop/Logo_Sketch/template_test3.png'
+    image_path = '/Users/sixuan/Desktop/Logo_Sketch/template_test3_compress.png'
     img = cv2.imread(image_path)
-    image_slicer_test = ImageSlicer(img, 50, 80, 15)
+    # image_slicer_test = ImageSlicer(img, 50, 80, 15)
+    image_slicer_test = ImageSlicer(img, 20, 10, 6)
     rect_masks = image_slicer_test.color_detect()
     filtered_rect_masks = image_slicer_test.rect_filter_merge(rect_masks)
-    crop_img = image_slicer_test.crop_image(filtered_rect_masks)
+    crop_imgs = image_slicer_test.crop_image(filtered_rect_masks)
+    image_slicer_test.send_img(crop_imgs)
 
 
 

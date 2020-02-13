@@ -1,0 +1,170 @@
+<html>
+    <head>
+    </head>
+    <body>
+        <div class ='container'>
+        <h1>Image Slicer API Test</h1>
+        <!-- <button onclick="send_img()">Download Image</button> -->
+        <!-- <label>Process Indicator</label> -->
+        <!-- <form action="/action_page.php"> -->
+            <!-- <input type="file" id="avatar" name="avatar" accept="image/png"> -->
+            <!-- <button id='upload_image' onclick="upload_img()">Upload Image</button> -->
+            <!-- <button id='send_image' onclick="send_img()">Send Image</button> -->
+            <!-- <input type="submit" value="Submit"> -->
+        <!-- </form> -->
+
+        <input type='file' accept="image/png"/>
+        </br>
+        <div id='myImg' width=100% >
+            <img id="uploadedImg" src="#" alt="your image" width=100%/>    
+            <button id='submitImg' onclick="send_img()" >Submit</button>
+        </div>
+
+        <canvas crossorigin="anonymous" id="myCanvas" width="1800" height="1165"></canvas>
+        <div id="returned_img">
+        </div>
+
+    <!-- <img id='target_img' src="https://github.com/amoewdy-li/PCT_ImageSlicer/blob/master/template_test3.png?raw=true" alt="test_image"> -->
+        </div>
+    </body>
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+</html>
+
+
+<style>
+    canvas{
+        margin: 50 0;
+        width:100%;
+    }
+    /* body {
+    margin:400
+    } */
+    .container{
+        margin:100;
+
+    }
+    #myImg{
+        /* display:none; */
+        width:100%;
+    }
+    #uploadedImg{
+        display:none;
+    }
+    #submitImg{
+        display:none;
+    }
+    button{
+        margin:20 0;
+    }
+    #returned_img{
+        display:none;
+    }
+    .logo{
+        margin: 10 20;
+    }
+</style>
+
+<script>
+// TODO drag upload function
+// TODO Download button
+// TODO How that fit into designer workflow
+// TODO draw the wireframe/storyboard
+
+var dataURL = ''
+
+window.addEventListener('load', function() {
+  document.querySelector('input[type="file"]').addEventListener('change', function() {
+      if (this.files && this.files[0]) {
+          var img = document.querySelector('img');  // $('img')[0]
+          img.src = URL.createObjectURL(this.files[0]); // set src to blob url
+          img.onload = imageIsLoaded;
+        //   var reader = new FileReader();
+        //   dataURL = reader.readAsDataURL(this.files[0]);
+      }
+  });
+});
+
+function imageIsLoaded() { 
+    console.log(this.src)
+    getBase64FromImageUrl(this.src);
+    let messageDiv = document.getElementById("submitImg");
+    messageDiv.style.display='block';
+}
+
+function getBase64FromImageUrl(URL) {
+    var imageObj = new Image();
+    imageObj.setAttribute('crossOrigin', 'anonymous');
+    // imageObj.src = 'https://github.com/amoewdy-li/PCT_ImageSlicer/blob/master/template_test3.png?raw=true';
+    // imageObj.src = 'template_test3.png';
+    imageObj.src = URL
+    imageObj.onload = function() {
+
+        var canvas = document.getElementById('myCanvas');
+        canvas.width = this.width;
+        canvas.height = this.height;
+        // canvas.width = 1800;
+        // canvas.height = 1165;
+        // canvas.autoScale();
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(this, 0, 0);
+        dataURL = canvas.toDataURL("image/png");
+        dataURL = dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
+        console.log('dataURL get');
+        console.log(dataURL);
+    };
+}
+
+function test_send_img(){
+    $.ajax({
+            type: "POST",
+            dataType: "json",
+            contentType: "application/json",
+            // crossDomain: true,
+            // url: "https://sbcwa3b167.execute-api.us-east-2.amazonaws.com/testing",
+            // url: "https://zltumx5x9i.execute-api.us-west-2.amazonaws.com/api/",
+            data: {
+                "body":"hello",
+            }
+        }).done(function (data_return) {
+            console.log('img receive');
+            console.log(data_return);
+        });
+}
+
+
+function send_img(){
+    console.log('sending image')
+    console.log(this.dataURL)
+    $.ajax({
+            type: "POST",
+            dataType: "json",
+            contentType: "application/json",
+            // crossDomain: true,
+            // url: "https://sbcwa3b167.execute-api.us-east-2.amazonaws.com/testing",
+            url: "https://zltumx5x9i.execute-api.us-west-2.amazonaws.com/api/",
+            data: JSON.stringify({
+                body: this.dataURL,
+            }),
+        }).done(function (data_return) {
+            console.log(data_return)
+            var img_set= data_return['body'];
+            console.log(img_set);
+            
+
+            let messageDiv = document.getElementById("returned_img");
+            messageDiv.style.display='block';
+            
+            for (i = 0; i < img_set.length; i++){
+                messageDiv.innerHTML += "<img class='logo' src='data:image/jpeg;base64," + img_set[i]+"'height='200'>"
+                console.log(i)
+                console.log("image written")
+                }
+            console.log('img receive');
+        });
+}
+
+function download_img(){
+
+}
+
+</script>
