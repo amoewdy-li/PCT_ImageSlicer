@@ -1,27 +1,23 @@
 <html>
     <head>
+        <link href="https://fonts.googleapis.com/css?family=Lato&display=swap" rel="stylesheet">
     </head>
     <body>
         <div class ='container'>
-        <h1>Image Slicer API Test</h1>
-        <!-- <button onclick="send_img()">Download Image</button> -->
-        <!-- <label>Process Indicator</label> -->
-        <!-- <form action="/action_page.php"> -->
-            <!-- <input type="file" id="avatar" name="avatar" accept="image/png"> -->
-            <!-- <button id='upload_image' onclick="upload_img()">Upload Image</button> -->
-            <!-- <button id='send_image' onclick="send_img()">Send Image</button> -->
-            <!-- <input type="submit" value="Submit"> -->
-        <!-- </form> -->
-
-        <input type='file' accept="image/png"/>
-        </br>
-        <div id='myImg' width=100% >
-            <img id="uploadedImg" src="#" alt="your image" width=100%/>    
-            <button id='submitImg' onclick="send_img()" >Submit</button>
+        <div class='interface'>
+            <h1>Image Slicer Test</h1>
+            <input type='file' accept="image/png"/>
+            </br>
+            <div id='myImg' width=100% >
+                <img id="uploadedImg" src="#" alt="your image" width=100%/>    
+                <button id='submitImg' onclick="send_img()" >Slice</button>
+                <p id='processIndicator'>Processing...</p>
+                <button id='downloadImg' onclick='download_img()'>Download All</button>
+            </div>
         </div>
-
-        <canvas crossorigin="anonymous" id="myCanvas" width="1800" height="1165"></canvas>
-        <div id="returned_img">
+        <div class='display'>
+            <canvas crossorigin="anonymous" id="myCanvas" width="1800" height="1165"></canvas>
+            <div id="returned_img"></div>
         </div>
 
     <!-- <img id='target_img' src="https://github.com/amoewdy-li/PCT_ImageSlicer/blob/master/template_test3.png?raw=true" alt="test_image"> -->
@@ -40,8 +36,35 @@
     margin:400
     } */
     .container{
-        margin:100;
-
+        /* margin:100; */
+        height:100%;
+        display: flex;
+        font-family: 'Lato', sans-serif;
+    }
+    .interface{
+        flex:1;
+        background-color: #42B0FF;
+        padding: 50;
+    }
+    .interface h1{
+        font-weight: bold;
+        font-size: 32px;
+        line-height: 41px;
+        color: #FFFFFF;
+    }
+    .interface input{
+        font-size: 14px;
+        color: #FFFFFF;
+    }
+    input{
+        /* background-color: #ffffff; */
+        border: none;
+        text-align: center;
+        font-size: 16px;
+    }
+    .display{
+        flex:4;
+        margin:100 20;
     }
     #myImg{
         /* display:none; */
@@ -53,6 +76,9 @@
     #submitImg{
         display:none;
     }
+    #downloadImg{
+        display:none;
+    }
     button{
         margin:20 0;
     }
@@ -61,6 +87,14 @@
     }
     .logo{
         margin: 10 20;
+        border-style: dotted;
+        border-width: 2px;
+        border-color:#C4C4C4;
+    }
+    #processIndicator{
+        display:none; 
+        font-size: 14px;
+        color: #FFFFFF;
     }
 </style>
 
@@ -77,6 +111,8 @@ window.addEventListener('load', function() {
       if (this.files && this.files[0]) {
           var img = document.querySelector('img');  // $('img')[0]
           img.src = URL.createObjectURL(this.files[0]); // set src to blob url
+          img.style.width=1800+'px';
+          img.style.height=1165+'px';
           img.onload = imageIsLoaded;
         //   var reader = new FileReader();
         //   dataURL = reader.readAsDataURL(this.files[0]);
@@ -99,18 +135,22 @@ function getBase64FromImageUrl(URL) {
     imageObj.src = URL
     imageObj.onload = function() {
 
-        var canvas = document.getElementById('myCanvas');
-        canvas.width = this.width;
-        canvas.height = this.height;
-        // canvas.width = 1800;
-        // canvas.height = 1165;
+        let canvas = document.getElementById('myCanvas');
+        // canvas.width = this.width;
+        // canvas.height = this.height;
+        canvas.width = 1800;
+        canvas.height = 1165;
         // canvas.autoScale();
         var ctx = canvas.getContext("2d");
-        ctx.drawImage(this, 0, 0);
+        ctx.drawImage(this, 0, 0,1800,1165);
+        console.log(canvas.width,canvas.height)
+        // canvas.width = 1800;
+        // canvas.height = 1165;
         dataURL = canvas.toDataURL("image/png");
         dataURL = dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
+        console.log(canvas.width,canvas.height)
         console.log('dataURL get');
-        console.log(dataURL);
+        // console.log(dataURL);
     };
 }
 
@@ -135,6 +175,8 @@ function test_send_img(){
 function send_img(){
     console.log('sending image')
     console.log(this.dataURL)
+    let indicator = document.getElementById("processIndicator");
+    indicator.style.display="block";
     $.ajax({
             type: "POST",
             dataType: "json",
@@ -149,13 +191,19 @@ function send_img(){
             console.log(data_return)
             var img_set= data_return['body'];
             console.log(img_set);
-            
-
+            let canvas = document.getElementById('myCanvas');
+            canvas.style.display='none';
             let messageDiv = document.getElementById("returned_img");
             messageDiv.style.display='block';
+            let buttonDownload = document.getElementById('downloadImg');
+            buttonDownload.style.display = "block";
+            let buttonSubmit = document.getElementById('submitImg');
+            buttonSubmit.style.display = "none";
+            let indicator = document.getElementById("processIndicator");
+            indicator.style.display="none";
             
             for (i = 0; i < img_set.length; i++){
-                messageDiv.innerHTML += "<img class='logo' src='data:image/jpeg;base64," + img_set[i]+"'height='200'>"
+                messageDiv.innerHTML += "<img class='logo' src='data:image/jpeg;base64," + img_set[i]+"'height='100'>"
                 console.log(i)
                 console.log("image written")
                 }
@@ -164,6 +212,52 @@ function send_img(){
 }
 
 function download_img(){
+    images = document.querySelectorAll(".logo");
+
+    // let id = setInterval( function() {
+    //     if ( i >= images.length ) {
+    //     clearInterval( id );
+    //     return;
+    //     }
+
+    //     var image = images[i++];
+    //     i++;
+    //     var a = document.createElement('a');
+    //     console.log( image )
+    //     a.href = image.src
+    //     // a.download = image.src
+    //     a.download = 'sliced_image_'+i.toString()+'.png';
+    //     document.body.appendChild(a);
+    //     a.click();
+    //     document.body.removeChild(a);
+    //     console.log("download"+j.toString());
+    // })
+    // let j = 1;
+    // for (i of images) {
+    //     let a = document.createElement('a');
+    //     a.href = i.src;
+    //     // a.download = i.src;
+    //     a.download = 'sliced_image_'+j.toString()+'.png';
+    //     console.log("download"+j.toString());
+    //     document.body.appendChild(a);
+    //     a.click();
+    //     document.body.removeChild(a);
+    //     j += 1;
+    //     }
+    
+    let img_num = images.length
+    for (let i=1; i<=img_num; i++) {
+        setTimeout( function timer(){
+            let a = document.createElement('a');
+            a.href = images[i-1].src;
+            // a.download = i.src;
+            a.download = 'sliced_image_'+i.toString()+'.png';
+            console.log("download"+i.toString());
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+    }, i*200 );
+    }
 
 }
 
